@@ -1,0 +1,82 @@
+<!-- body嵌套树状结构演示 -->
+<mujoco model="body_tree">
+    <compiler angle="radian"/>
+    <option timestep="0.002" gravity="0 0 -9.81"/>
+
+    <visual>
+        <global realtime="1"/>
+        <quality shadowsize="1024"/>
+        <headlight diffuse="1 1 1" specular="0.5 0.5 0.5" active="1"/>
+    </visual>
+
+    <asset>
+        <texture name="grid" type="2d" builtin="checker" width="512" height="512"
+                 rgb1=".2 .2 .2" rgb2=".8 .8 .8"/>
+        <material name="grid" texture="grid"/>
+    </asset>
+
+    <worldbody>
+        <geom name="floor" type="plane" size="20 20 .01" material="grid" condim="3"/>
+
+        <!--
+        坐标树演示:
+        每个body的pos都是相对于父body的局部坐标
+        A (根) → B (子) → C (孙)
+        A在世界坐标(0,0,0.5), B相对A向上0.5, C相对B再向上0.5
+        所以C在世界坐标中位于(0,0,1.5)
+        -->
+
+        <!-- 三层嵌套: A→B→C -->
+        <body name="A" pos="0 3 0.5">
+            <freejoint/>
+            <!-- A自身的geom -->
+            <geom type="sphere" size="0.15" rgba=".9 .2 .2 1"/>
+            <site name="A_site" type="sphere" size="0.05" rgba="1 1 1 .5" pos="0 0 0.3"/>
+
+            <!-- B: 相对于A向上0.4 -->
+            <body name="B" pos="0 0 0.4">
+                <geom type="capsule" size="0.08 0.15" rgba=".2 .2 .9 1"/>
+                <site name="B_site" type="sphere" size="0.04" rgba="1 1 1 .5" pos="0 0 0.2"/>
+
+                <!-- C: 相对于B向上0.25 -->
+                <body name="C" pos="0 0 0.25">
+                    <geom type="sphere" size="0.06" rgba=".2 .8 .2 1"/>
+                    <site name="C_site" type="sphere" size="0.03" rgba="1 1 1 .5" pos="0 0 0.1"/>
+                </body>
+            </body>
+        </body>
+
+        <!-- 对比: 三个独立body并列（非嵌套），各自独立运动 -->
+        <body pos="-4 3 0.5">
+            <freejoint/>
+            <geom type="sphere" size="0.15" rgba=".9 .2 .2 1"/>
+        </body>
+        <body pos="-4 3 0.9">
+            <freejoint/>
+            <geom type="capsule" size="0.08 0.15" rgba=".2 .2 .9 1"/>
+        </body>
+        <body pos="-4 3 1.15">
+            <freejoint/>
+            <geom type="sphere" size="0.06" rgba=".2 .8 .2 1"/>
+        </body>
+
+        <!-- 蜘蛛腿式嵌套: 从中心向四周展开 -->
+        <body name="center" pos="4 3 0.5">
+            <freejoint/>
+            <geom type="sphere" size="0.1" rgba=".8 .8 .8 1"/>
+
+            <body name="leg1" pos="0.2 0 0.1">
+                <geom type="capsule" size="0.04 0.15" rgba=".9 .2 .2 1"/>
+            </body>
+            <body name="leg2" pos="-0.2 0 0.1">
+                <geom type="capsule" size="0.04 0.15" rgba=".2 .9 .2 1"/>
+            </body>
+            <body name="leg3" pos="0 0.2 0.1">
+                <geom type="capsule" size="0.04 0.15" rgba=".2 .2 .9 1"/>
+            </body>
+            <body name="leg4" pos="0 -0.2 0.1">
+                <geom type="capsule" size="0.04 0.15" rgba=".9 .9 .2 1"/>
+            </body>
+        </body>
+    </worldbody>
+</mujoco>

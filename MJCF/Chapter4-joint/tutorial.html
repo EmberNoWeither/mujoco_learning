@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MuJoCo 第四章：Joint — 关节与运动约束</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --surface: #1e293b;
+    --surface2: #273449;
+    --border: #334155;
+    --text: #e2e8f0;
+    --text2: #94a3b8;
+    --accent: #38bdf8;
+    --accent2: #818cf8;
+    --green: #4ade80;
+    --orange: #fb923c;
+    --red: #f87171;
+    --yellow: #facc15;
+    --pink: #f472b6;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: var(--bg); color: var(--text); line-height: 1.8;
+  }
+  .hero {
+    background: linear-gradient(135deg, #0f172a 0%, #1a1a3e 40%, #16213e 100%);
+    padding: 80px 24px 60px; text-align: center; position: relative; overflow: hidden;
+    border-bottom: 2px solid var(--border);
+  }
+  .hero::before {
+    content: ""; position: absolute; inset: 0;
+    background: radial-gradient(ellipse at 30% 50%, rgba(129,140,248,.12) 0%, transparent 60%),
+                radial-gradient(ellipse at 80% 20%, rgba(56,189,248,.08) 0%, transparent 50%);
+  }
+  .hero h1 {
+    font-size: 3rem; font-weight: 900;
+    background: linear-gradient(135deg, var(--accent2), #a78bfa, var(--pink));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text; position: relative; letter-spacing: 2px;
+  }
+  .hero .sub { color: var(--text2); font-size: 1.15rem; margin-top: 12px; position: relative; }
+  .badge-row { margin-top: 24px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; position: relative; }
+  .badge { background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 4px 16px; font-size: .85rem; color: var(--text2); }
+  .container { max-width: 960px; margin: 0 auto; padding: 40px 24px; }
+  section { margin-bottom: 56px; }
+  .section-title {
+    font-size: 1.75rem; font-weight: 800; margin-bottom: 20px; padding-bottom: 10px;
+    border-bottom: 3px solid var(--accent2); display: flex; align-items: center; gap: 10px;
+  }
+  .section-title .num {
+    background: var(--accent2); color: #fff; width: 36px; height: 36px;
+    border-radius: 8px; display: flex; align-items: center; justify-content: center;
+    font-size: 1rem; font-weight: 900;
+  }
+  .card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    padding: 24px; margin-bottom: 20px;
+  }
+  .card h3 { color: var(--accent2); font-size: 1.15rem; margin-bottom: 12px; }
+  .info-box { border-radius: 10px; padding: 16px 20px; margin: 16px 0; border-left: 4px solid; }
+  .info-box.tip  { background: rgba(129,140,248,.08); border-color: var(--accent2); }
+  .info-box.warn { background: rgba(251,146,60,.08);  border-color: var(--orange); }
+  .info-box.note { background: rgba(74,222,128,.08);  border-color: var(--green); }
+  pre {
+    background: #0d1117; border: 1px solid var(--border); border-radius: 10px;
+    padding: 18px 20px; overflow-x: auto; margin: 14px 0; font-size: .9rem; line-height: 1.65;
+  }
+  code { font-family: "JetBrains Mono", "Fira Code", "Cascadia Code", monospace; }
+  :not(pre) > code { background: var(--surface2); padding: 2px 7px; border-radius: 5px; font-size: .88em; color: var(--orange); }
+  .tag { color: #ff79c6; } .attr { color: #bd93f9; } .val { color: #f1fa8c; } .cmt { color: #6272a4; font-style: italic; }
+  .table-wrap { overflow-x: auto; margin: 16px 0; border: 1px solid var(--border); border-radius: 10px; }
+  table { width: 100%; border-collapse: collapse; }
+  th { background: var(--surface2); color: var(--accent2); text-align: left; padding: 12px 16px; font-weight: 700; font-size: .9rem; white-space: nowrap; }
+  td { padding: 10px 16px; border-top: 1px solid var(--border); font-size: .9rem; }
+  tr:hover td { background: rgba(129,140,248,.04); }
+  td:first-child, th:first-child { border-right: 1px solid var(--border); }
+  .param-list {
+    list-style: none; display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px;
+  }
+  .param-list li { background: var(--surface2); border-radius: 8px; padding: 10px 14px; font-size: .88rem; }
+  .param-list li strong { color: var(--accent2); }
+  .joint-cards {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; margin: 20px 0;
+  }
+  .joint-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    padding: 20px; text-align: center; transition: transform .15s, border-color .15s;
+  }
+  .joint-card:hover { border-color: var(--accent2); transform: translateY(-2px); }
+  .joint-card .icon { width: 60px; height: 60px; margin: 0 auto 12px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: 900; }
+  .joint-card h4 { margin-bottom: 6px; }
+  .joint-card .dof { font-size: .8rem; color: var(--text2); }
+  .diagram {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    padding: 30px; margin: 20px 0; font-family: "JetBrains Mono", monospace;
+    font-size: .85rem; line-height: 2; overflow-x: auto; white-space: pre; color: var(--text2);
+  }
+  .diagram .hl { color: var(--accent2); font-weight: bold; }
+  .diagram .hl2 { color: var(--green); }
+  .diagram .hl3 { color: var(--orange); }
+  footer { text-align: center; padding: 40px 24px; color: var(--text2); font-size: .85rem; border-top: 1px solid var(--border); }
+  .formula {
+    background: var(--surface2); border-radius: 8px; padding: 12px 18px;
+    margin: 8px 0; font-family: "JetBrains Mono", monospace; font-size: .9rem;
+    text-align: center; color: var(--accent);
+  }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <h1>第四章：Joint</h1>
+  <p class="sub">关节 —— 连接 body、定义运动约束、驱动仿真世界的核心机制</p>
+  <div class="badge-row">
+    <span class="badge">free</span>
+    <span class="badge">ball</span>
+    <span class="badge">slide</span>
+    <span class="badge">hinge</span>
+    <span class="badge">stiffness</span>
+    <span class="badge">damping</span>
+    <span class="badge">range</span>
+    <span class="badge">axis</span>
+  </div>
+</div>
+
+<div class="container">
+
+<!-- ===== 1. 概述 ===== -->
+<section>
+  <div class="section-title"><span class="num">1</span> 关节的本质理解</div>
+
+  <div class="card">
+    <p><code>&lt;joint&gt;</code> 是 MuJoCo 中<strong>连接 body 并赋予运动自由度</strong>的元件。它的核心作用可以归纳为：</p>
+    <ul style="list-style: disc; padding-left: 24px; margin-top: 12px; color: var(--text2);">
+      <li>一个 body 内的所有 geom 是一个<strong>刚性整体</strong></li>
+      <li>joint 连接<strong>当前 body 和父 body</strong>，为两者之间引入<strong>可动约束</strong></li>
+      <li>每个 body <strong>最多只能有一个 joint</strong>，用于定义当前 body 相对父 body 的运动方式</li>
+      <li>joint 对于上一层 body 是<strong>相对静止</strong>的；当前 body 围绕 joint 运动</li>
+    </ul>
+  </div>
+
+  <div class="info-box tip">
+    <p><strong>💡 直观理解：</strong>body = 骨头，joint = 关节。胳膊（body）内的所有 geom（骨块）是刚性一体的，肘关节（joint）连接大臂（父 body）和前臂（子 body），让前臂能绕肘关节弯曲。</p>
+    <p style="margin-top:6px;">在物理学上：joint 在当前 body 的坐标系中<strong>位置固定</strong>，父 body 通过 joint 对子 body 施加约束力。</p>
+  </div>
+
+  <div class="diagram">
+<span class="hl2">World (root)</span>
+└── body: <span class="hl">torso</span> (躯干)
+    └── joint: <span class="hl3">free</span>  ← 躯干相对世界自由运动
+    ├── geom: torso_geom
+    ├── body: <span class="hl">upper_arm</span> (大臂)
+    │   └── joint: <span class="hl3">hinge</span> axis=(1,0,0)  ← 肩关节：绕X轴转动
+    │   ├── geom: upper_arm_geom
+    │   └── body: <span class="hl">forearm</span> (前臂)
+    │       └── joint: <span class="hl3">hinge</span> axis=(0,1,0)  ← 肘关节：绕Y轴转动
+    │       └── geom: forearm_geom
+  </div>
+</section>
+
+<!-- ===== 2. 关节类型 ===== -->
+<section>
+  <div class="section-title"><span class="num">2</span> 四种关节类型</div>
+
+  <div class="joint-cards">
+    <div class="joint-card">
+      <div class="icon" style="background:rgba(248,113,113,.15); color:var(--red);">F</div>
+      <h4>free</h4>
+      <p class="dof">自由度: 6 (3平移+3旋转)</p>
+      <p style="font-size:.82rem; color:var(--text2); margin-top:6px;">自由关节，赋予body完全自由的运动能力。一般不用，通常用freejoint简写替代。</p>
+    </div>
+    <div class="joint-card">
+      <div class="icon" style="background:rgba(74,222,128,.15); color:var(--green);">B</div>
+      <h4>ball</h4>
+      <p class="dof">自由度: 3 (仅旋转)</p>
+      <p style="font-size:.82rem; color:var(--text2); margin-top:6px;">球形关节，绕球心自由旋转。类似人体的肩关节或髋关节。无法平移。</p>
+    </div>
+    <div class="joint-card">
+      <div class="icon" style="background:rgba(56,189,248,.15); color:var(--accent);">S</div>
+      <h4>slide</h4>
+      <p class="dof">自由度: 1 (沿轴平移)</p>
+      <p style="font-size:.82rem; color:var(--text2); margin-top:6px;">滑轨关节，沿axis方向直线滑动。类似抽屉轨道或气缸活塞。</p>
+    </div>
+    <div class="joint-card">
+      <div class="icon" style="background:rgba(251,191,36,.15); color:var(--yellow);">H</div>
+      <h4>hinge</h4>
+      <p class="dof">自由度: 1 (绕轴旋转)</p>
+      <p style="font-size:.82rem; color:var(--text2); margin-top:6px;">旋转关节（铰链），绕axis旋转。<strong>最常用的关节类型</strong>，类似门的合页或肘关节。</p>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>type</th><th>自由度</th><th>运动方式</th><th>典型应用</th><th>是否用 axis</th></tr></thead>
+      <tbody>
+        <tr><td><code>free</code></td><td>6</td><td>自由平移+旋转</td><td>无人机的初始关节、漂浮物体</td><td>不需要</td></tr>
+        <tr><td><code>ball</code></td><td>3</td><td>绕球心三轴旋转</td><td>肩关节、髋关节、万向节</td><td>不需要</td></tr>
+        <tr><td><code>slide</code></td><td>1</td><td>沿 axis 方向平移</td><td>活塞、滑轨、抽屉</td><td><strong>需要</strong></td></tr>
+        <tr><td><code>hinge</code></td><td>1</td><td>绕 axis 旋转</td><td>肘关节、膝关节、门铰链、车轮</td><td><strong>需要</strong></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="info-box note">
+    <p><strong>📌 freejoint 简写：</strong>如果想让一个 body 在场景中完全自由运动（如从空中下落），不需要写 <code>&lt;joint type="free"/&gt;</code>，直接写 <code>&lt;freejoint/&gt;</code> 即可（它是 MuJoCo 专门为自由运动提供的便捷简写）。</p>
+  </div>
+
+  <h3 style="color:var(--accent); margin:24px 0 12px;">四种关节用法示例：</h3>
+
+  <div class="card">
+    <h3>🔓 free — 完全自由运动</h3>
+<pre><span class="tag">&lt;body</span> <span class="attr">pos</span>=<span class="val">"0 0 2"</span><span class="tag">&gt;</span>
+    <span class="tag">&lt;freejoint/&gt;</span>  <span class="cmt">&lt;!-- 等价于 &lt;joint type="free"/&gt; --&gt;</span>
+    <span class="tag">&lt;geom</span> <span class="attr">type</span>=<span class="val">"sphere"</span> <span class="attr">size</span>=<span class="val">"0.2"</span> <span class="attr">rgba</span>=<span class="val">".9 .2 .2 1"</span> <span class="tag">/&gt;</span>
+<span class="tag">&lt;/body&gt;</span></pre>
+  </div>
+
+  <div class="card">
+    <h3>⚽ ball — 球形关节</h3>
+    <p style="margin-bottom:8px;">ball 关节让 body 绕关节中心自由旋转但不能平移。ball 不支持 axis 属性。</p>
+<pre><span class="tag">&lt;body</span> <span class="attr">pos</span>=<span class="val">"0 0 1"</span><span class="tag">&gt;</span>
+    <span class="tag">&lt;joint</span> <span class="attr">type</span>=<span class="val">"ball"</span> <span class="attr">pos</span>=<span class="val">"0 0 0"</span> <span class="tag">/&gt;</span>
+    <span class="tag">&lt;geom</span> <span class="attr">type</span>=<span class="val">"capsule"</span> <span class="attr">size</span>=<span class="val">"0.05 0.3"</span> <span class="attr">rgba</span>=<span class="val">".2 .8 .2 1"</span> <span class="tag">/&gt;</span>
+<span class="tag">&lt;/body&gt;</span></pre>
+  </div>
+
+  <div class="card">
+    <h3>🛝 slide — 滑轨关节</h3>
+    <p style="margin-bottom:8px;">slide 关节让 body 沿 axis 方向做直线运动。axis 定义了滑动方向。</p>
+<pre><span class="tag">&lt;body</span> <span class="attr">pos</span>=<span class="val">"0 0 1"</span><span class="tag">&gt;</span>
+    <span class="tag">&lt;joint</span> <span class="attr">type</span>=<span class="val">"slide"</span> <span class="attr">pos</span>=<span class="val">"0 0 0"</span> <span class="attr">axis</span>=<span class="val">"0 1 0"</span> <span class="attr">range</span>=<span class="val">"-0.5 0.5"</span> <span class="tag">/&gt;</span>
+    <span class="tag">&lt;geom</span> <span class="attr">type</span>=<span class="val">"box"</span> <span class="attr">size</span>=<span class="val">"0.1 0.3 0.1"</span> <span class="attr">rgba</span>=<span class="val">".2 .2 .9 1"</span> <span class="tag">/&gt;</span>
+<span class="tag">&lt;/body&gt;</span></pre>
+  </div>
+
+  <div class="card">
+    <h3>🔧 hinge — 旋转关节</h3>
+    <p style="margin-bottom:8px;">hinge 关节让 body 绕 axis 旋转。这是构建机器人和机械结构中最常用的关节类型。</p>
+<pre><span class="tag">&lt;body</span> <span class="attr">pos</span>=<span class="val">"0 0 1"</span><span class="tag">&gt;</span>
+    <span class="tag">&lt;joint</span> <span class="attr">type</span>=<span class="val">"hinge"</span> <span class="attr">pos</span>=<span class="val">"0 0 0"</span> <span class="attr">axis</span>=<span class="val">"0 0 1"</span> <span class="tag">/&gt;</span>
+    <span class="tag">&lt;geom</span> <span class="attr">type</span>=<span class="val">"box"</span> <span class="attr">size</span>=<span class="val">"0.05 0.3 0.05"</span> <span class="attr">rgba</span>=<span class="val">".9 .7 .2 1"</span> <span class="tag">/&gt;</span>
+<span class="tag">&lt;/body&gt;</span></pre>
+  </div>
+</section>
+
+<!-- ===== 3. 关节动力学参数 ===== -->
+<section>
+  <div class="section-title"><span class="num">3</span> 关节动力学参数</div>
+  <p style="margin-bottom:16px;">MuJoCo 的关节不仅定义运动约束，还内置了<strong>弹簧-阻尼-惯性</strong>模型，可以模拟真实物理关节的动力学特性：</p>
+
+  <ul class="param-list">
+    <li><strong>pos</strong> — 关节相对当前body的位置 (x y z)</li>
+    <li><strong>axis</strong> — 活动轴方向 (x y z)，仅 slide 和 hinge 有效</li>
+    <li><strong>stiffness</strong> — 弹簧刚度，使关节产生回复力</li>
+    <li><strong>damping</strong> — 阻尼系数，抵抗关节速度</li>
+    <li><strong>frictionloss</strong> — 关节内部的库仑摩擦力损失</li>
+    <li><strong>armature</strong> — 电枢惯性（转子转动惯量 × 减速比² × 传动效率）</li>
+    <li><strong>range</strong> — 关节运动范围限制</li>
+    <li><strong>limited</strong> — 是否启用范围限制（auto/true/false）</li>
+    <li><strong>ref</strong> — 关节角度偏置，即"零位偏移"</li>
+  </ul>
+
+  <h3 style="color:var(--accent); margin:24px 0 12px;">3.1 stiffness — 弹簧刚度</h3>
+  <p style="margin-bottom:8px;">使关节像弹簧一样，偏离零位时产生<strong>回复力</strong>。数值越大，弹簧越硬。</p>
+  <div class="formula">回复力矩 τ = (0 − pos) × stiffness</div>
+  <p style="font-size:.85rem; color:var(--text2); margin-top:6px;">即：关节偏离参考位置越远，回复力越大。这个力是<strong>正比例线性弹簧</strong>模型。</p>
+
+  <h3 style="color:var(--accent); margin:24px 0 12px;">3.2 damping — 阻尼系数</h3>
+  <p style="margin-bottom:8px;">产生<strong>与速度成正比的阻力</strong>，消耗能量，使运动趋于平缓。</p>
+  <div class="formula">阻尼力矩 τ = (0 − v) × damping</div>
+  <p style="font-size:.85rem; color:var(--text2); margin-top:6px;">damping 让关节的运动速度逐渐衰减，模拟真实的粘性阻尼效果。常用于让关节不要无限振荡。</p>
+
+  <h3 style="color:var(--accent); margin:24px 0 12px;">3.3 frictionloss — 库仑摩擦损失</h3>
+  <p style="margin-bottom:8px;">模拟关节内部的<strong>干摩擦</strong>（与速度无关，取决于正压力）。不同于 damping 的粘性摩擦，frictionloss 是<strong>恒定的摩擦力矩</strong>，只要关节在运动就会存在。</p>
+
+  <h3 style="color:var(--accent); margin:24px 0 12px;">3.4 armature — 电枢惯性</h3>
+  <p style="margin-bottom:8px;">表示关节驱动电机转子的<strong>等效转动惯量</strong>。计算公式：</p>
+  <div class="formula">armature = 转子转动惯量 × 减速比² × 传动效率</div>
+  <p style="font-size:.85rem; color:var(--text2); margin-top:6px;">在精确的机器人仿真中，电机转子的惯量不能忽略——尤其在高减速比时，armature 项会显著影响关节动力学。通常数值很小（如 0.001）。</p>
+
+  <div class="info-box tip">
+    <p><strong>💡 参数选择建议：</strong></p>
+    <ul style="padding-left:20px; margin-top:6px;">
+      <li><strong>弹簧关节：</strong>设 stiffness > 0，damping > 0（防止振荡）</li>
+      <li><strong>柔顺关节：</strong>小 stiffness + 适中 damping</li>
+      <li><strong>硬关节（位置控制）：</strong>stiffness=0，damping 根据需要设置</li>
+      <li><strong>真实电机仿真：</strong>加上 armature 值</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ===== 4. 关节限制 ===== -->
+<section>
+  <div class="section-title"><span class="num">4</span> range — 关节运动范围限制</div>
+
+  <div class="card">
+    <p><code>range</code> 定义了关节的<strong>运动行程限制</strong>，配合 <code>limited</code> 属性使用：</p>
+    <ul style="list-style:disc; padding-left:24px; margin-top:10px; color:var(--text2);">
+      <li><strong>hinge / slide：</strong>range 为两个值 <code>"min max"</code>，分别是最小和最大角度/位移</li>
+      <li><strong>ball：</strong>只有两个参数有效，第一个设为 0，第二个为锥角限制</li>
+      <li><strong>limited="auto"：</strong>自动根据 range 的数值判断是否启用限制。如果 range 的两端都为 0，则视为无限制</li>
+      <li>需要在 <code>&lt;compiler&gt;</code> 中设置 <code>autolimits="true"</code></li>
+    </ul>
+
+<pre><span class="cmt">&lt;!-- hinge关节，限制旋转角度在 -30° 到 60° 之间 (弧度) --&gt;</span>
+<span class="tag">&lt;joint</span> <span class="attr">type</span>=<span class="val">"hinge"</span> <span class="attr">pos</span>=<span class="val">"0 0 0"</span> <span class="attr">axis</span>=<span class="val">"0 0 1"</span>
+       <span class="attr">range</span>=<span class="val">"-0.523 1.047"</span> <span class="attr">limited</span>=<span class="val">"true"</span> <span class="tag">/&gt;</span>
+
+<span class="cmt">&lt;!-- slide关节，限制滑动范围 -0.3m 到 0.3m --&gt;</span>
+<span class="tag">&lt;joint</span> <span class="attr">type</span>=<span class="val">"slide"</span> <span class="attr">axis</span>=<span class="val">"0 1 0"</span>
+       <span class="attr">range</span>=<span class="val">"-0.3 0.3"</span> <span class="attribute">limited</span>=<span class="val">"true"</span> <span class="tag">/&gt;</span>
+
+<span class="cmt">&lt;!-- ball关节：锥角限制 45° (0.785 rad) --&gt;</span>
+<span class="tag">&lt;joint</span> <span class="attr">type</span>=<span class="val">"ball"</span> <span class="attr">range</span>=<span class="val">"0 0.785"</span> <span class="attribute">limited</span>=<span class="val">"true"</span> <span class="tag">/&gt;</span></pre>
+  </div>
+
+  <div class="info-box warn">
+    <p><strong>⚠️ 注意：</strong>在 compiler 中设置 <code>autolimits="true"</code> 后，MuJoCo 会根据 range 值自动推断 <code>limited</code> 属性，无需手动指定。</p>
+  </div>
+</section>
+
+<!-- ===== 5. axis ===== -->
+<section>
+  <div class="section-title"><span class="num">5</span> axis — 关节活动轴</div>
+
+  <div class="card">
+    <p><code>axis</code> 定义了 hinge 和 slide 关节的<strong>运动方向</strong>。它是一个 3D 向量 (x y z)，在<strong>父 body 的坐标系</strong>中定义。</p>
+    <ul style="list-style:disc; padding-left:24px; margin-top:10px; color:var(--text2);">
+      <li><strong>hinge：</strong>axis 是旋转轴，关节围绕此轴旋转（右手定则）</li>
+      <li><strong>slide：</strong>axis 是滑动方向，关节沿此轴平移</li>
+      <li>axis 向量<strong>会自动归一化</strong>，所以 <code>"1 0 0"</code> 和 <code>"2 0 0"</code> 效果相同</li>
+    </ul>
+  </div>
+
+  <div class="diagram">
+axis 方向与运动的关系：
+<span class="hl">axis="1 0 0"</span>  → hinge绕X轴旋转 / slide沿X轴滑动
+<span class="hl">axis="0 1 0"</span>  → hinge绕Y轴旋转 / slide沿Y轴滑动
+<span class="hl">axis="0 0 1"</span>  → hinge绕Z轴旋转 / slide沿Z轴滑动
+<span class="hl">axis="0 1 1"</span>  → hinge绕(0,1,1)方向旋转（对角的合页）</pre>
+  </div>
+</section>
+
+<!-- ===== 6. ref 角度偏置 ===== -->
+<section>
+  <div class="section-title"><span class="num">6</span> ref — 角度偏置</div>
+
+  <div class="card">
+    <p><code>ref</code> 属性定义了关节的<strong>"零位"参考角度</strong>。它与 stiffness 配合使用时非常重要：</p>
+    <ul style="list-style:disc; padding-left:24px; margin-top:10px; color:var(--text2);">
+      <li>关节的当前角度 = <strong>qpos − ref</strong></li>
+      <li>弹簧回复力是基于 <strong>(ref − 当前角度)</strong> 计算的</li>
+      <li>相当于你可以定义"这个关节的正常位置是 30°"，弹簧会试图把关节保持在 30°</li>
+    </ul>
+
+<pre><span class="cmt">&lt;!-- 关节的默认位置偏置为0.3rad(约17°)，弹簧会把关节推向这个位置 --&gt;</span>
+<span class="tag">&lt;joint</span> <span class="attr">type</span>=<span class="val">"hinge"</span> <span class="attr">axis</span>=<span class="val">"0 0 1"</span>
+       <span class="attr">ref</span>=<span class="val">"0.3"</span> <span class="attr">stiffness</span>=<span class="val">"0.5"</span> <span class="tag">/&gt;</span></pre>
+  </div>
+</section>
+
+<!-- ===== 7. 完整场景解析 ===== -->
+<section>
+  <div class="section-title"><span class="num">7</span> 完整场景解析</div>
+  <p style="margin-bottom:16px;">scence.xml 展示了一个精巧的双级摆系统（倒立摆变体），包含了两个 hinge 关节的级联：</p>
+
+  <div class="diagram">
+<span class="hl2">World</span>
+└── body: <span class="hl">support</span> pos=(0,0,0.1)
+    ├── geom: cylinder (支撑柱)
+    └── body: <span class="hl">rotary_arm</span> pos=(0,0,0.51)
+        └── <span class="hl3">joint: hinge "pivot"</span>  axis=(0,0,1) 阻尼0.001 刚度0.5
+        ├── geom: capsule (水平旋转臂)
+        └── body: <span class="hl">pendulum</span> pos=(0.2,0,0)
+            └── <span class="hl3">joint: hinge "ph"</span>  axis=(1,0,0) 阻尼0.001
+            ├── geom: capsule (摆杆)
+            └── geom: sphere (配重球)
+  </div>
+
+  <div class="card">
+    <h3>关节1: pivot (hinge, axis=0 0 1)</h3>
+    <p style="margin-bottom:8px;">水平旋转关节，让 rotary_arm 绕 Z 轴在水平面内旋转。stiffness=0.5 提供了适中的弹簧回复力。</p>
+<pre><span class="tag">&lt;joint</span> <span class="attr">type</span>=<span class="val">"hinge"</span> <span class="attr">name</span>=<span class="val">"pivot"</span> <span class="attr">pos</span>=<span class="val">"0 0 0"</span>
+       <span class="attr">axis</span>=<span class="val">"0 0 1"</span> <span class="attr">damping</span>=<span class="val">"0.001"</span>
+       <span class="attr">frictionloss</span>=<span class="val">"0.0"</span> <span class="attr">stiffness</span>=<span class="val">"0.5"</span> <span class="tag">/&gt;</span></pre>
+  </div>
+
+  <div class="card">
+    <h3>关节2: ph (hinge, axis=1 0 0)</h3>
+    <p style="margin-bottom:8px;">垂直旋转关节，让 pendulum 绕 X 轴在垂直面内摆动。damping=0.001 提供轻微阻尼防止无限摆动。</p>
+<pre><span class="tag">&lt;joint</span> <span class="attr">type</span>=<span class="val">"hinge"</span> <span class="attr">name</span>=<span class="val">"ph"</span> <span class="attr">pos</span>=<span class="val">"0 0 0"</span>
+       <span class="attr">axis</span>=<span class="val">"1 0 0"</span> <span class="attr">damping</span>=<span class="val">"0.001"</span>
+       <span class="attr">frictionloss</span>=<span class="val">"0.0"</span> <span class="tag">/&gt;</span></pre>
+  </div>
+
+  <div class="info-box note">
+    <p><strong>📌 关键观察：</strong></p>
+    <ul style="padding-left:20px; margin-top:6px;">
+      <li>pivot 关节有 stiffness=0.5，所以水平臂偏离零位后会<strong>自动弹回</strong></li>
+      <li>ph 关节没有 stiffness，所以摆杆在垂直面内<strong>自由摆动</strong></li>
+      <li>配重球（sphere）放在摆杆末端，增大惯性，让摆动更明显</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ===== 8. 小结 ===== -->
+<section>
+  <div class="section-title"><span class="num">8</span> 本章小结</div>
+  <div class="card">
+    <table>
+      <thead><tr><th>概念</th><th>核心要点</th></tr></thead>
+      <tbody>
+        <tr><td><strong>joint 本质</strong></td><td>连接父子 body，定义相对运动约束；每 body 最多一个 joint</td></tr>
+        <tr><td><strong>free / freejoint</strong></td><td>6 自由度完全自由运动；飞行物体、根 body 常用</td></tr>
+        <tr><td><strong>ball</strong></td><td>3 旋转自由度，无平移；模拟万向节/肩关节</td></tr>
+        <tr><td><strong>slide</strong></td><td>1 平移自由度，沿 axis 直线运动；需指定 axis</td></tr>
+        <tr><td><strong>hinge</strong></td><td>1 旋转自由度，绕 axis 旋转；最常用关节，需指定 axis</td></tr>
+        <tr><td><strong>stiffness</strong></td><td>弹簧回复力 τ = (0−pos)×stiffness；数值越大越硬</td></tr>
+        <tr><td><strong>damping</strong></td><td>粘性阻尼 τ = (0−v)×damping；消耗能量、平缓运动</td></tr>
+        <tr><td><strong>frictionloss</strong></td><td>恒定摩擦力矩（库仑摩擦），与速度无关</td></tr>
+        <tr><td><strong>armature</strong></td><td>电机转子等效惯量，高减速比时影响显著</td></tr>
+        <tr><td><strong>range &amp; limited</strong></td><td>关节行程限制；hinge/slide 二值；ball 锥角；配合 autolimits 使用</td></tr>
+        <tr><td><strong>ref</strong></td><td>角度偏置，弹簧试图将关节保持在此位置</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+</div>
+
+<footer>MuJoCo Tutorial · Chapter 4: Joint · 连接身体、定义运动</footer>
+</body>
+</html>

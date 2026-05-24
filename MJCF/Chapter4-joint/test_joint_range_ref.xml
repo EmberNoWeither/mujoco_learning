@@ -1,0 +1,93 @@
+<!-- range角度限制演示 + ref角度偏置 -->
+<mujoco model="joint_range_ref">
+    <compiler angle="radian" autolimits="true"/>
+    <option timestep="0.002" gravity="0 0 -9.81"/>
+
+    <visual>
+        <global realtime="1"/>
+        <quality shadowsize="1024"/>
+        <headlight diffuse="1 1 1" specular="0.5 0.5 0.5" active="1"/>
+    </visual>
+
+    <asset>
+        <texture name="grid" type="2d" builtin="checker" width="512" height="512"
+                 rgb1=".15 .15 .15" rgb2=".7 .7 .7"/>
+        <material name="grid" texture="grid"/>
+    </asset>
+
+    <worldbody>
+        <geom name="floor" type="plane" size="20 20 .01" material="grid" condim="3"/>
+
+        <!-- range对比: hinge关节的不同角度限制 -->
+        <!-- 无限制 -->
+        <body pos="-3 3 0">
+            <geom type="cylinder" size="0.04 0.2" rgba=".5 .5 .5 1"/>
+            <body pos="0 0 0.2">
+                <joint type="hinge" axis="0 1 0" stiffness="1" damping="0.01"/>
+                <geom type="capsule" size="0.03 0.25" rgba=".2 .8 .2 1"/>
+                <!-- 转动范围指示弧 -->
+            </body>
+        </body>
+
+        <!-- 限制±30° (约±0.52 rad) -->
+        <body pos="-1.5 3 0">
+            <geom type="cylinder" size="0.04 0.2" rgba=".5 .5 .5 1"/>
+            <body pos="0 0 0.2">
+                <joint type="hinge" axis="0 1 0" range="-0.52 0.52" stiffness="1" damping="0.01"/>
+                <geom type="capsule" size="0.03 0.25" rgba=".2 .2 .9 1"/>
+            </body>
+        </body>
+
+        <!-- 限制0~90° (0~1.57 rad) -->
+        <body pos="0 3 0">
+            <geom type="cylinder" size="0.04 0.2" rgba=".5 .5 .5 1"/>
+            <body pos="0 0 0.2">
+                <joint type="hinge" axis="0 1 0" range="0 1.57" stiffness="1" damping="0.01" ref="0.785"/>
+                <geom type="capsule" size="0.03 0.25" rgba=".9 .7 .2 1"/>
+            </body>
+        </body>
+
+        <!-- slide的range限制 -->
+        <body pos="1.5 3 0">
+            <geom type="box" size="0.15 0.04 0.02" rgba=".6 .6 .6 1"/>
+            <body pos="-0.1 0 0.05">
+                <joint type="slide" axis="1 0 0" range="-0.15 0.15" stiffness="2" damping="0.01"/>
+                <geom type="box" size="0.05 0.06 0.04" rgba=".2 .8 .8 1"/>
+            </body>
+        </body>
+
+        <!-- ref偏置演示: 不同的ref值 -->
+        <body pos="-3 0 0">
+            <geom type="cylinder" size="0.04 0.3" rgba=".5 .5 .5 1"/>
+            <body pos="0 0 0.3">
+                <!-- ref=0 (默认)，弹簧把关节保持在竖直位置 -->
+                <joint type="hinge" axis="0 1 0" ref="0" stiffness="2" damping="0.01"/>
+                <geom type="capsule" size="0.03 0.3" rgba=".9 .3 .3 1"/>
+            </body>
+        </body>
+        <body pos="-1.5 0 0">
+            <geom type="cylinder" size="0.04 0.3" rgba=".5 .5 .5 1"/>
+            <body pos="0 0 0.3">
+                <!-- ref=0.5 rad(约30°)，弹簧把关节推向30°位置 -->
+                <joint type="hinge" axis="0 1 0" ref="0.5" stiffness="2" damping="0.01"/>
+                <geom type="capsule" size="0.03 0.3" rgba=".3 .9 .3 1"/>
+            </body>
+        </body>
+        <body pos="0 0 0">
+            <geom type="cylinder" size="0.04 0.3" rgba=".5 .5 .5 1"/>
+            <body pos="0 0 0.3">
+                <!-- ref=-0.5 rad，弹簧把关节推向-30°方向 -->
+                <joint type="hinge" axis="0 1 0" ref="-0.5" stiffness="2" damping="0.01"/>
+                <geom type="capsule" size="0.03 0.3" rgba=".3 .3 .9 1"/>
+            </body>
+        </body>
+        <body pos="1.5 0 0">
+            <geom type="cylinder" size="0.04 0.3" rgba=".5 .5 .5 1"/>
+            <body pos="0 0 0.3">
+                <!-- ref=1.0 rad(约60°)，弹簧把关节推向60°方向 -->
+                <joint type="hinge" axis="0 1 0" ref="1.0" stiffness="2" damping="0.01"/>
+                <geom type="capsule" size="0.03 0.3" rgba=".9 .7 .3 1"/>
+            </body>
+        </body>
+    </worldbody>
+</mujoco>

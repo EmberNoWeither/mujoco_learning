@@ -1,0 +1,67 @@
+<!-- contype/conaffinity碰撞掩码演示 -->
+<mujoco model="collision_mask">
+    <compiler angle="radian"/>
+    <option timestep="0.002" gravity="0 0 -9.81"/>
+
+    <visual>
+        <global realtime="1"/>
+        <quality shadowsize="1024"/>
+        <headlight diffuse="1 1 1" specular="0.5 0.5 0.5" active="1"/>
+    </visual>
+
+    <asset>
+        <texture name="grid" type="2d" builtin="checker" width="512" height="512"
+                 rgb1=".2 .2 .2" rgb2=".8 .8 .8"/>
+        <material name="grid" texture="grid"/>
+    </asset>
+
+    <!--
+    碰撞规则:
+    - contype=0 或 conaffinity=0 → 无碰撞
+    - 红色球: 只与contype包含bit0(即1)的物体碰撞
+    - 蓝色球: 只与contype包含bit1(即2)的物体碰撞
+    - contype=15 (bit0-3全开) → 能与任何非0 conaffinity的物体碰撞
+    -->
+    <worldbody>
+        <geom name="floor" type="plane" size="20 20 .01" material="grid" condim="3"
+              contype="1" conaffinity="15"/>
+
+        <!-- 红色球: contype=1(b0001), conaffinity=1(b0001) —— 只与affinity含bit0的碰撞 -->
+        <body pos="-3 0 1.5">
+            <freejoint/>
+            <geom type="sphere" size="0.25" rgba=".9 .2 .2 1"
+                  contype="1" conaffinity="1"/>
+        </body>
+
+        <!-- 蓝色球: contype=2(b0010), conaffinity=2(b0010) —— 只与affinity含bit1的碰撞 -->
+        <body pos="-1 0 1.5">
+            <freejoint/>
+            <geom type="sphere" size="0.25" rgba=".2 .2 .9 1"
+                  contype="2" conaffinity="2"/>
+        </body>
+
+        <!-- 绿色球: contype=0 —— 不与其他物体碰撞（幽灵物体） -->
+        <body pos="1 0 1.5">
+            <freejoint/>
+            <geom type="sphere" size="0.25" rgba=".2 .8 .2 1"
+                  contype="0" conaffinity="15"/>
+        </body>
+
+        <!-- 白色球: contype=3(b0011), conaffinity=15 —— 与所有物体碰撞 -->
+        <body pos="3 0 1.5">
+            <freejoint/>
+            <geom type="sphere" size="0.25" rgba=".8 .8 .8 1"
+                  contype="3" conaffinity="15"/>
+        </body>
+
+        <!-- 障碍柱: contype=1, conaffinity=15 —— 只与红色和白色碰撞 -->
+        <body pos="-3 2 .5">
+            <geom type="cylinder" size="0.1 0.5" rgba=".5 .5 .5 1"
+                  contype="1" conaffinity="15"/>
+        </body>
+        <body pos="-1 2 .5">
+            <geom type="cylinder" size="0.1 0.5" rgba=".5 .5 .5 1"
+                  contype="1" conaffinity="15"/>
+        </body>
+    </worldbody>
+</mujoco>

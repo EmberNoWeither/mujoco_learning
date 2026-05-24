@@ -1,0 +1,81 @@
+<!-- 多关节级联: 构建简单的3轴机械臂 -->
+<mujoco model="robot_arm">
+    <compiler angle="radian" autolimits="true"/>
+    <option timestep="0.002" gravity="0 0 -9.81"/>
+
+    <visual>
+        <global realtime="1"/>
+        <quality shadowsize="1024"/>
+        <headlight diffuse="1 1 1" specular="0.5 0.5 0.5" active="1"/>
+    </visual>
+
+    <asset>
+        <texture name="grid" type="2d" builtin="checker" width="512" height="512"
+                 rgb1=".15 .15 .15" rgb2=".7 .7 .7"/>
+        <material name="grid" texture="grid"/>
+    </asset>
+
+    <worldbody>
+        <geom name="floor" type="plane" size="20 20 .01" material="grid" condim="3"/>
+
+        <!--
+        3轴机械臂:
+        - 底座(balance_arm)绕Z轴旋转 (hinge, axis=0 0 1)
+        - 大臂(arm1)绕Y轴俯仰 (hinge, axis=0 1 0)
+        - 小臂(arm2)绕Y轴俯仰 (hinge, axis=0 1 0)
+        -->
+
+        <!-- 底座 -->
+        <body name="base" pos="0 0 0.1">
+            <geom type="cylinder" size="0.15 0.1" rgba=".5 .5 .5 1"/>
+            <site type="sphere" size="0.03" rgba="1 1 1 .5" pos="0 0 0.1"/>
+
+            <!-- 旋转台 (绕Z轴) -->
+            <body name="turntable" pos="0 0 0.1">
+                <joint name="j1" type="hinge" axis="0 0 1"
+                       range="-3.14 3.14" damping="0.05" frictionloss="0.02"/>
+                <geom type="cylinder" size="0.12 0.05" rgba=".7 .7 .7 1"/>
+                <geom type="cylinder" size="0.08 0.08" rgba=".8 .2 .2 1" pos="0 0 0.05"/>
+
+                <!-- 大臂 (绕Y轴俯仰) -->
+                <body name="upper_arm" pos="0 0 0.08">
+                    <joint name="j2" type="hinge" axis="0 1 0"
+                           range="-1.5 1.5" damping="0.03" stiffness="1"/>
+                    <geom type="capsule" size="0.04" fromto="0 0 0  0 0 0.35"
+                          rgba=".2 .7 .2 1"/>
+                    <!-- 标记大臂末端 -->
+                    <site type="sphere" size="0.03" rgba="1 1 1 .5" pos="0 0 0.35"/>
+
+                    <!-- 小臂 (绕Y轴俯仰) -->
+                    <body name="forearm" pos="0 0 0.35">
+                        <joint name="j3" type="hinge" axis="0 1 0"
+                               range="-2.0 2.0" damping="0.02" stiffness="0.5"/>
+                        <geom type="capsule" size="0.03" fromto="0 0 0  0 0 0.25"
+                              rgba=".2 .2 .8 1"/>
+                        <!-- 末端执行器 -->
+                        <body name="end_effector" pos="0 0 0.25">
+                            <geom type="sphere" size="0.05" rgba=".9 .7 .2 1"/>
+                            <site type="box" size="0.04 0.02 0.04" rgba="1 0 0 1" pos="0 0 0.06"/>
+                        </body>
+                    </body>
+                </body>
+            </body>
+        </body>
+
+        <!-- 对比: 双级摆（和scence.xml类似但更明显） -->
+        <body name="pendulum_base" pos="3 0 0.1">
+            <geom type="cylinder" size="0.06 0.5" rgba=".4 .4 .4 1"/>
+
+            <body name="pendulum_arm" pos="0 0 0.5">
+                <joint name="pj1" type="hinge" axis="0 0 1" damping="0.002" stiffness="0.3"/>
+                <geom type="capsule" size="0.02" fromto="0 0 0  0.3 0 0" rgba=".9 .3 .3 1"/>
+
+                <body name="pendulum_rod" pos="0.3 0 0">
+                    <joint name="pj2" type="hinge" axis="1 0 0" damping="0.002"/>
+                    <geom type="capsule" size="0.015" fromto="0 0 0  0 0 -0.35" rgba=".3 .3 .9 1"/>
+                    <geom type="sphere" size="0.04" rgba=".2 .8 .2 1" pos="0 0 -0.35"/>
+                </body>
+            </body>
+        </body>
+    </worldbody>
+</mujoco>

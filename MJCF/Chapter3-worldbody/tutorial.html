@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MuJoCo 第三章：Worldbody — 仿真世界的构建</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --surface: #1e293b;
+    --surface2: #273449;
+    --border: #334155;
+    --text: #e2e8f0;
+    --text2: #94a3b8;
+    --accent: #38bdf8;
+    --accent2: #818cf8;
+    --green: #4ade80;
+    --orange: #fb923c;
+    --red: #f87171;
+    --yellow: #facc15;
+    --pink: #f472b6;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.8;
+  }
+
+  /* ===== Hero ===== */
+  .hero {
+    background: linear-gradient(135deg, #0f172a 0%, #1a1a3e 40%, #0f3460 100%);
+    padding: 80px 24px 60px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+    border-bottom: 2px solid var(--border);
+  }
+  .hero::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at 30% 50%, rgba(56,189,248,.12) 0%, transparent 60%),
+                radial-gradient(ellipse at 80% 20%, rgba(129,140,248,.08) 0%, transparent 50%);
+  }
+  .hero h1 {
+    font-size: 3rem;
+    font-weight: 900;
+    background: linear-gradient(135deg, var(--accent), var(--accent2), #c084fc);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    position: relative;
+    letter-spacing: 2px;
+  }
+  .hero .sub {
+    color: var(--text2);
+    font-size: 1.15rem;
+    margin-top: 12px;
+    position: relative;
+  }
+  .badge-row {
+    margin-top: 24px;
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    flex-wrap: wrap;
+    position: relative;
+  }
+  .badge {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 4px 16px;
+    font-size: .85rem;
+    color: var(--text2);
+  }
+
+  /* ===== Layout ===== */
+  .container {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 40px 24px;
+  }
+
+  /* ===== Section ===== */
+  section { margin-bottom: 56px; }
+  .section-title {
+    font-size: 1.75rem;
+    font-weight: 800;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 3px solid var(--accent);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .section-title .num {
+    background: var(--accent);
+    color: #000;
+    width: 36px; height: 36px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1rem;
+    font-weight: 900;
+  }
+
+  /* ===== Cards ===== */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 20px;
+  }
+  .card h3 {
+    color: var(--accent);
+    font-size: 1.15rem;
+    margin-bottom: 12px;
+  }
+
+  /* ===== Info boxes ===== */
+  .info-box {
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin: 16px 0;
+    border-left: 4px solid;
+  }
+  .info-box.tip  { background: rgba(56,189,248,.08);  border-color: var(--accent); }
+  .info-box.warn { background: rgba(251,146,60,.08);  border-color: var(--orange); }
+  .info-box.note { background: rgba(74,222,128,.08);  border-color: var(--green);  }
+  .info-box p { margin: 4px 0; }
+
+  /* ===== Code ===== */
+  pre {
+    background: #0d1117;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 20px;
+    overflow-x: auto;
+    margin: 14px 0;
+    font-size: .9rem;
+    line-height: 1.65;
+  }
+  code {
+    font-family: "JetBrains Mono", "Fira Code", "Cascadia Code", "SF Mono", monospace;
+  }
+  :not(pre) > code {
+    background: var(--surface2);
+    padding: 2px 7px;
+    border-radius: 5px;
+    font-size: .88em;
+    color: var(--orange);
+  }
+  .tag { color: #ff79c6; }
+  .attr { color: #bd93f9; }
+  .val  { color: #f1fa8c; }
+  .cmt  { color: #6272a4; font-style: italic; }
+
+  /* ===== Tables ===== */
+  .table-wrap {
+    overflow-x: auto;
+    margin: 16px 0;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  th {
+    background: var(--surface2);
+    color: var(--accent);
+    text-align: left;
+    padding: 12px 16px;
+    font-weight: 700;
+    font-size: .9rem;
+    white-space: nowrap;
+  }
+  td {
+    padding: 10px 16px;
+    border-top: 1px solid var(--border);
+    font-size: .9rem;
+  }
+  tr:hover td { background: rgba(56,189,248,.04); }
+  td:first-child, th:first-child { border-right: 1px solid var(--border); }
+
+  /* ===== Visual demo grid ===== */
+  .geom-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 16px;
+    margin: 20px 0;
+  }
+  .geom-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    text-align: center;
+    transition: transform .15s, border-color .15s;
+  }
+  .geom-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .geom-card .icon {
+    width: 60px; height: 60px;
+    margin: 0 auto 12px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.5rem;
+    font-weight: 900;
+  }
+  .geom-card h4 { margin-bottom: 6px; }
+  .geom-card .params { font-size: .8rem; color: var(--text2); }
+
+  /* ===== Tree visual ===== */
+  .tree-demo {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 30px;
+    margin: 20px 0;
+    font-family: "JetBrains Mono", monospace;
+    font-size: .88rem;
+    line-height: 2;
+    overflow-x: auto;
+    white-space: pre;
+    color: var(--text2);
+  }
+  .tree-demo .hl { color: var(--accent); font-weight: bold; }
+  .tree-demo .hl2 { color: var(--green); }
+
+  /* ===== Comparison ===== */
+  .cmp {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin: 20px 0;
+  }
+  @media (max-width: 640px) { .cmp { grid-template-columns: 1fr; } }
+  .cmp-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+  }
+  .cmp-box h4 {
+    margin-bottom: 12px;
+    font-size: 1rem;
+  }
+
+  /* ===== Parameter list ===== */
+  .param-list {
+    list-style: none;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 10px;
+  }
+  .param-list li {
+    background: var(--surface2);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: .88rem;
+  }
+  .param-list li strong {
+    color: var(--accent);
+  }
+
+  /* ===== Footer ===== */
+  footer {
+    text-align: center;
+    padding: 40px 24px;
+    color: var(--text2);
+    font-size: .85rem;
+    border-top: 1px solid var(--border);
+  }
+</style>
+</head>
+<body>
+
+<!-- ===== HERO ===== -->
+<div class="hero">
+  <h1>第三章：Worldbody</h1>
+  <p class="sub">构建 MuJoCo 仿真世界的基石 — 几何体、坐标树与场景搭建</p>
+  <div class="badge-row">
+    <span class="badge">MuJoCo MJCF</span>
+    <span class="badge">geom</span>
+    <span class="badge">body</span>
+    <span class="badge">site</span>
+    <span class="badge">碰撞检测</span>
+  </div>
+</div>
+
+<div class="container">
+
+<!-- ===== 1. 概述 ===== -->
+<section>
+  <div class="section-title"><span class="num">1</span> 概述</div>
+  <div class="card">
+    <p><code>&lt;worldbody&gt;</code> 是 MuJoCo MJCF 模型的<strong>根物理节点</strong>。一切可仿真的物理实体——地面、机器人、物体、传感器安装点——都必须放置于此标签之内。</p>
+    <p style="margin-top:10px;">本章将详细介绍 <code>&lt;worldbody&gt;</code> 中的三大核心子元素：</p>
+  </div>
+
+  <div class="geom-grid">
+    <div class="geom-card">
+      <div class="icon" style="background:rgba(56,189,248,.15); color:var(--accent);">G</div>
+      <h4>geom</h4>
+      <p class="params">几何体 · 碰撞体积 · 质量</p>
+    </div>
+    <div class="geom-card">
+      <div class="icon" style="background:rgba(74,222,128,.15); color:var(--green);">S</div>
+      <h4>site</h4>
+      <p class="params">简化几何体 · 传感器安装点</p>
+    </div>
+    <div class="geom-card">
+      <div class="icon" style="background:rgba(129,140,248,.15); color:var(--accent2);">B</div>
+      <h4>body</h4>
+      <p class="params">刚体 · 坐标树 · 嵌套层级</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== 2. geom 详解 ===== -->
+<section>
+  <div class="section-title"><span class="num">2</span> geom — 几何体</div>
+
+  <p style="margin-bottom:16px;"><code>&lt;geom&gt;</code> 是 MuJoCo 中最基础的物理实体。它定义了一个具有<strong>形状、质量、碰撞体积和外观</strong>的对象。一个 geom 可以是一个球体、一个立方体，也可以是一张从 CAD 导入的网格——MuJoCo 使用它们进行碰撞检测和物理计算。</p>
+
+  <!-- geom 类型概览 -->
+  <h3 style="color:var(--accent2); margin-bottom:12px;">2.1 几何体类型一览</h3>
+  <div class="geom-grid">
+    <div class="geom-card">
+      <h4>🏟 plane</h4>
+      <p class="params">平面（地板）</p>
+    </div>
+    <div class="geom-card">
+      <h4>🌄 hfield</h4>
+      <p class="params">高度场（地形）</p>
+    </div>
+    <div class="geom-card">
+      <h4>⚽ sphere</h4>
+      <p class="params">球体</p>
+    </div>
+    <div class="geom-card">
+      <h4>💊 capsule</h4>
+      <p class="params">胶囊体</p>
+    </div>
+    <div class="geom-card">
+      <h4>🥚 ellipsoid</h4>
+      <p class="params">椭球体</p>
+    </div>
+    <div class="geom-card">
+      <h4>🥫 cylinder</h4>
+      <p class="params">圆柱体</p>
+    </div>
+    <div class="geom-card">
+      <h4>📦 box</h4>
+      <p class="params">立方体</p>
+    </div>
+    <div class="geom-card">
+      <h4>🕸 mesh</h4>
+      <p class="params">三角网格</p>
+    </div>
+  </div>
+
+  <!-- size 参数表 -->
+  <h3 style="color:var(--accent2); margin:24px 0 12px;">2.2 size 参数对照表</h3>
+  <p style="margin-bottom:12px;">不同几何体类型的 <code>size</code> 参数含义不同，这是需要特别注意的地方：</p>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>type</th><th>size 参数个数</th><th>含义</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>plane</code></td><td>3</td><td>X 半长; Y 半长; 渲染网格线间距（若半长为 0 则该维度无限延伸）</td></tr>
+        <tr><td><code>hfield</code></td><td>0</td><td>忽略，改用高度场文件尺寸</td></tr>
+        <tr><td><code>sphere</code></td><td>1</td><td>半径</td></tr>
+        <tr><td><code>capsule</code></td><td>1 或 2</td><td>半球半径; [若不用 fromto] 圆柱段半长</td></tr>
+        <tr><td><code>ellipsoid</code></td><td>3</td><td>X 半径; Y 半径; Z 半径</td></tr>
+        <tr><td><code>cylinder</code></td><td>1 或 2</td><td>半径; [若不用 fromto] 半长</td></tr>
+        <tr><td><code>box</code></td><td>3</td><td>X 半长; Y 半长; Z 半长</td></tr>
+        <tr><td><code>mesh</code></td><td>0</td><td>忽略，改用网格文件尺寸</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="info-box tip">
+    <p><strong>💡 提示：</strong>除了 <code>size</code> 之外，<code>capsule</code>、<code>cylinder</code>、<code>box</code> 和 <code>ellipsoid</code> 还可以用 <code>fromto</code> 属性来定义几何体——用两个 3D 点指定起点和终点，几何体的 Z 轴正方向为 <strong>point2 → point1</strong>。</p>
+  </div>
+
+  <!-- 几何体代码示例 -->
+  <h3 style="color:var(--accent2); margin:24px 0 12px;">2.3 各类几何体用法示例</h3>
+
+  <div class="card">
+    <h3>🟫 地板（plane）</h3>
+    <p style="margin-bottom:8px;">平面通常用棋盘格纹理来可视化地面。当 X 或 Y 半长为 0 时，平面在该维度无限延伸。</p>
+<pre><span class="cmt">&lt;!-- 棋盘格纹理 --&gt;</span>
+<span class="tag">&lt;texture</span> <span class="attr">name</span>=<span class="val">"grid"</span> <span class="attr">type</span>=<span class="val">"2d"</span> <span class="attr">builtin</span>=<span class="val">"checker"</span>
+         <span class="attr">width</span>=<span class="val">"2048"</span> <span class="attr">height</span>=<span class="val">"2048"</span>
+         <span class="attr">rgb1</span>=<span class="val">".3 .4 .8"</span> <span class="attr">rgb2</span>=<span class="val">".9 .9 .9"</span> <span class="tag">/&gt;</span>
+<span class="tag">&lt;geom</span> <span class="attr">name</span>=<span class="val">"ground"</span> <span class="attr">type</span>=<span class="val">"plane"</span> <span class="attr">size</span>=<span class="val">"100 100 .01"</span> <span class="attr">material</span>=<span class="val">"grid"</span> <span class="tag">/&gt;</span></pre>
+  </div>
+
+  <div class="card">
+    <h3>⚽ 球体（sphere）</h3>
+    <p style="margin-bottom:8px;">只需一个 radius 参数，最简单的三维几何体。</p>
+<pre><span class="tag">&lt;geom</span> <span class="attr">type</span>=<span class="val">"sphere"</span> <span class="attr">material</span>=<span class="val">"metal_material"</span> <span class="attr">size</span>=<span class="val">"1"</span> <span class="attr">mass</span>=<span class="val">"1"</span> <span class="tag">/&gt;</span></pre>
+  </div>
+
+  <div class="card">
+    <h3>💊 胶囊体 &amp; 圆柱体（capsule / cylinder）</h3>
+    <p style="margin-bottom:8px;">用两个 size 参数（半径 + 半长），或使用 <code>fromto</code> 直接指定两端点。</p>
+<pre><span class="cmt">&lt;!-- 使用 size 参数 --&gt;</span>
+<span class="tag">&lt;geom</span> <span class="attr">type</span>=<span class="val">"capsule"</span> <span class="attr">material</span>=<span class="val">"metal_material"</span> <span class="attr">size</span>=<span class="val">"1 2"</span> <span class="attr">mass</span>=<span class="val">"1"</span> <span class="tag">/&gt;</span>
+
+<span class="cmt">&lt;!-- 使用 fromto 参数，Z 轴正方向: point2 → point1 --&gt;</span>
+<span class="tag">&lt;geom</span> <span class="attr">type</span>=<span class="val">"cylinder"</span> <span class="attr">size</span>=<span class="val">"0.1"</span> <span class="attr">fromto</span>=<span class="val">"0 0 0  0 0 0.2"</span>
+      <span class="attr">rgba</span>=<span class="val">".5 .5 0 1"</span> <span class="tag">/&gt;</span></pre>
+  </div>
+
+  <div class="card">
+    <h3>📦 立方体 &amp; 椭球体（box / ellipsoid）</h3>
+    <p style="margin-bottom:8px;">三个 size 参数：X半长、Y半长、Z半长。</p>
+<pre><span class="tag">&lt;geom</span> <span class="attr">type</span>=<span class="val">"box"</span> <span class="attr">material</span>=<span class="val">"metal_material"</span> <span class="attr">size</span>=<span class="val">"1 2 1"</span> <span class="attr">mass</span>=<span class="val">"1"</span> <span class="tag">/&gt;</span>
+<span class="tag">&lt;geom</span> <span class="attr">type</span>=<span class="val">"ellipsoid"</span> <span class="attr">material</span>=<span class="val">"metal_material"</span> <span class="attr">size</span>=<span class="val">"1 2 1"</span> <span class="attr">mass</span>=<span class="val">"1"</span> <span class="tag">/&gt;</span></pre>
+  </div>
+
+  <div class="card">
+    <h3>🕸 网格（mesh）</h3>
+    <p style="margin-bottom:8px;">从外部 3D 模型文件（STL/OBJ）导入。先在 <code>&lt;asset&gt;</code> 中声明 mesh，再在 geom 中引用。</p>
+<pre><span class="cmt">&lt;!-- asset 中声明 --&gt;</span>
+<span class="tag">&lt;mesh</span> <span class="attr">name</span>=<span class="val">"forearm"</span> <span class="attr">file</span>=<span class="val">"forearm.stl"</span> <span class="tag">/&gt;</span>
+
+<span class="cmt">&lt;!-- geom 中引用 --&gt;</span>
+<span class="tag">&lt;geom</span> <span class="attr">type</span>=<span class="val">"mesh"</span> <span class="attr">mesh</span>=<span class="val">"forearm"</span> <span class="attr">material</span>=<span class="val">"metal_material"</span> <span class="tag">/&gt;</span></pre>
+  </div>
+
+  <!-- geom 完整属性列表 -->
+  <h3 style="color:var(--accent2); margin:24px 0 12px;">2.4 几何体核心属性汇总</h3>
+  <ul class="param-list">
+    <li><strong>type</strong> — 几何体类型（plane/sphere/box/…）</li>
+    <li><strong>size</strong> — 尺寸参数，含义因 type 而异</li>
+    <li><strong>pos</strong> — 相对父级 body 的位置 (x y z)</li>
+    <li><strong>fromto</strong> — 两点定义法，替代 size+旋转</li>
+    <li><strong>quat / axisangle / euler</strong> — 旋转表示（quat 为 wxyz 顺序）</li>
+    <li><strong>material</strong> — 引用已定义的材质名</li>
+    <li><strong>rgba</strong> — 直接指定颜色 (r g b a)，比材质更省资源</li>
+    <li><strong>mass</strong> — 质量 (kg)，与 density 二选一</li>
+    <li><strong>density</strong> — 密度 (kg/m³)，与 mass 二选一</li>
+    <li><strong>friction</strong> — 滑动/扭转/滚动 三参数摩擦力</li>
+    <li><strong>condim</strong> — 接触维度，取值 1/3/4/6</li>
+    <li><strong>priority</strong> — 碰撞优先级（数值越大越优先）</li>
+    <li><strong>shellinertia</strong> — true=质量集中边缘，false=均匀分布</li>
+    <li><strong>contype</strong> — 32位碰撞类型掩码</li>
+    <li><strong>conaffinity</strong> — 32位碰撞亲和掩码</li>
+  </ul>
+</section>
+
+<!-- ===== 3. condim 碰撞维度 ===== -->
+<section>
+  <div class="section-title"><span class="num">3</span> condim — 碰撞接触维度</div>
+  <p style="margin-bottom:16px;"><code>condim</code> 决定了两个几何体碰撞时，MuJoCo 会计算哪些<strong>摩擦维度</strong>——数值越大，模拟越精细，但计算开销也越大。</p>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>condim</th><th>摩擦行为</th><th>适用场景</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>1</strong></td><td>无摩擦接触（仅法向力）</td><td>纯弹性碰撞、简化模拟</td></tr>
+        <tr><td><strong>3</strong></td><td>切向平面摩擦（平移摩擦力）</td><td>大多数刚体碰撞场景</td></tr>
+        <tr><td><strong>4</strong></td><td>切向摩擦 + 绕法线旋转摩擦</td><td>软接触建模、需要防止绕接触点旋转</td></tr>
+        <tr><td><strong>6</strong></td><td>完整摩擦：切向 + 法线旋转 + 切向轴旋转</td><td>防止物体无限滚动（如球在地板上滚）</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="info-box note">
+    <p><strong>📌 物理直观理解：</strong></p>
+    <p>condim=1 就像冰面上没有摩擦；condim=3 是日常表面摩擦力；condim=6 是带自旋阻力（如橡胶接触），会额外阻止物体的无限滚动。</p>
+  </div>
+</section>
+
+<!-- ===== 4. 碰撞掩码 ===== -->
+<section>
+  <div class="section-title"><span class="num">4</span> 碰撞掩码 — contype &amp; conaffinity</div>
+
+  <div class="cmp">
+    <div class="cmp-box">
+      <h4 style="color:var(--accent);">contype</h4>
+      <p>32位掩码，表示"<strong>我是什么类型的碰撞体</strong>"。当两个 geom 的 contype 和 conaffinity 按位与 (&amp;) 结果非零时，两者就会发生碰撞。</p>
+    </div>
+    <div class="cmp-box">
+      <h4 style="color:var(--accent2);">conaffinity</h4>
+      <p>32位掩码，表示"<strong>我可以和什么类型的碰撞体发生碰撞</strong>"。它决定了一个 geom 对哪些 contype 是"可见的"。</p>
+    </div>
+  </div>
+
+  <div class="info-box tip">
+    <p><strong>💡 碰撞判定逻辑：</strong></p>
+    <p>geom<sub>A</sub>.contype &amp; geom<sub>B</sub>.conaffinity ≠ 0 <strong>且</strong> geom<sub>B</sub>.contype &amp; geom<sub>A</sub>.conaffinity ≠ 0</p>
+    <p style="margin-top:6px;">两个方向的按位与都需要非零，碰撞才会发生。这是一种灵活的碰撞分组机制——你可以让某类物体只与特定类型碰撞。</p>
+  </div>
+
+  <div class="card">
+    <h3>示例：选择性碰撞</h3>
+    <p style="margin-bottom:8px;">下面的配置中，立方体（contype=2, conaffinity=3）只会与 conaffinity 包含 bit 2 且 contype 包含 bit 1 或 bit 0 的对象碰撞：</p>
+<pre><span class="tag">&lt;geom</span> <span class="attr">type</span>=<span class="val">"box"</span> <span class="attr">size</span>=<span class="val">"0.1 0.1 0.1"</span>
+      <span class="attr">contype</span>=<span class="val">"2"</span> <span class="attr">conaffinity</span>=<span class="val">"3"</span> <span class="tag">/&gt;</span></pre>
+  </div>
+</section>
+
+<!-- ===== 5. site ===== -->
+<section>
+  <div class="section-title"><span class="num">5</span> site — 简化几何体</div>
+
+  <div class="info-box note">
+    <p><strong>📌 一句话理解：</strong><code>site</code> 是 <code>geom</code> 的"轻量版"。它有形状和位置，但<strong>不参与碰撞检测，也没有质量</strong>。它仅用于可视化标记和传感器安装。</p>
+  </div>
+
+  <p style="margin-top:16px;"><code>&lt;site&gt;</code> 的典型用途：</p>
+  <ul style="list-style: disc; padding-left: 24px; margin: 10px 0; color: var(--text2);">
+    <li>在机器人的特定部位安装传感器（力传感器、IMU 等）</li>
+    <li>标记关节位置或参考坐标系</li>
+    <li>纯可视化——高亮某些关键点而不影响物理</li>
+    <li>作为 actuator 的作用点</li>
+  </ul>
+
+  <div class="card">
+    <h3>示例：在球体上安装一个 site</h3>
+<pre><span class="tag">&lt;body</span> <span class="attr">pos</span>=<span class="val">"-1 0 .5"</span><span class="tag">&gt;</span>
+    <span class="tag">&lt;freejoint /&gt;</span>
+    <span class="tag">&lt;geom</span> <span class="attr">type</span>=<span class="val">"sphere"</span> <span class="attr">size</span>=<span class="val">"0.1"</span> <span class="attr">rgba</span>=<span class="val">".5 0 0 1"</span> <span class="tag">/&gt;</span>
+    <span class="tag">&lt;site</span> <span class="attr">type</span>=<span class="val">"capsule"</span> <span class="attr">size</span>=<span class="val">"0.05 0.1"</span> <span class="attr">rgba</span>=<span class="val">"0 0 .5 1"</span> <span class="tag">/&gt;</span>
+<span class="tag">&lt;/body&gt;</span></pre>
+  </div>
+
+  <p style="margin-top:12px;">site 的属性与 geom 高度相似：<code>type</code>、<code>size</code>、<code>pos</code>、<code>rgba</code> 等均可用，<strong>但不支持 mass、density、friction 等物理相关属性</strong>。site 只能使用简易几何体类型。</p>
+</section>
+
+<!-- ===== 6. body 坐标树 ===== -->
+<section>
+  <div class="section-title"><span class="num">6</span> body — 刚体与坐标树</div>
+
+  <p><code>&lt;body&gt;</code> 是 MuJoCo 中<strong>组织物理结构的容器</strong>。一个 body 内部可以包含多个 <code>geom</code>、<code>site</code>、<code>joint</code> 以及嵌套的子 <code>body</code>。整个机器人模型就是一棵由 body 嵌套而成的<strong>树状结构</strong>——这和 ROS 中的 <strong>TF 坐标变换树</strong>概念几乎一致。</p>
+
+  <h3 style="color:var(--accent2); margin:24px 0 12px;">6.1 坐标变换规则</h3>
+
+  <div class="card">
+    <p>每个 body 的位置 <code>pos</code> 和姿态 <code>quat/euler/...</code> 都是<strong>相对于其父级 body</strong> 的坐标系。</p>
+    <ul style="list-style:disc; padding-left:24px; margin-top:10px; color:var(--text2);">
+      <li>顶层 body（直接放在 worldbody 下）相对于世界坐标系</li>
+      <li>body 内的 geom 相对于该 body 的局部坐标系</li>
+      <li>body 内的 site 也相对于该 body 的局部坐标系</li>
+      <li>body 内的子 body 相对于父 body 的局部坐标系</li>
+    </ul>
+  </div>
+
+  <div class="info-box warn">
+    <p><strong>⚠️ 关键理解：</strong>变换是<strong>逐层叠加</strong>的。修改父级 body 的位置会带动其下所有子 body、geom 和 site 一起移动。这就是"骨骼带动肌肉"的物理直觉。</p>
+  </div>
+
+  <h3 style="color:var(--accent2); margin:24px 0 12px;">6.2 树状结构演示</h3>
+  <p>以下代码展示了三层嵌套的 body 树：</p>
+
+<pre><span class="tag">&lt;body</span> <span class="attr">name</span>=<span class="val">"A"</span> <span class="attr">pos</span>=<span class="val">"0 0 2"</span> <span class="attr">euler</span>=<span class="val">"0.5 0 0"</span><span class="tag">&gt;</span>
+    <span class="tag">&lt;freejoint /&gt;</span>
+    <span class="tag">&lt;geom</span> <span class="attr">type</span>=<span class="val">"sphere"</span> <span class="attr">size</span>=<span class="val">"0.1"</span> <span class="attr">rgba</span>=<span class="val">".2 0 0 1"</span> <span class="tag">/&gt;</span>
+    <span class="cmt">&lt;!-- 子 body B 相对于 A 向上偏移 0.5 --&gt;</span>
+    <span class="tag">&lt;body</span> <span class="attr">name</span>=<span class="val">"B"</span> <span class="attr">pos</span>=<span class="val">"0 0 0.5"</span> <span class="attr">euler</span>=<span class="val">"0.5 0 0"</span><span class="tag">&gt;</span>
+        <span class="tag">&lt;geom</span> <span class="attr">type</span>=<span class="val">"capsule"</span> <span class="attr">size</span>=<span class="val">"0.05 0.1"</span> <span class="attr">rgba</span>=<span class="val">"0 0 .2 1"</span> <span class="tag">/&gt;</span>
+    <span class="tag">&lt;/body&gt;</span>
+<span class="tag">&lt;/body&gt;</span></pre>
+
+  <h3 style="color:var(--accent2); margin:24px 0 12px;">6.3 坐标树可视化</h3>
+  <p style="margin-bottom:8px;">以下树形图展示了 scence.xml 中 body A → B 的嵌套关系：</p>
+  <div class="tree-demo">
+<span class="hl">World</span> (世界坐标系)
+├── <span class="hl">body A</span>  pos=(0,0,2)  euler=(0.5,0,0)
+│   ├── geom: sphere  size=0.1                <span class="cmt">← 相对于 A 的局部坐标</span>
+│   └── <span class="hl2">body B</span>  pos=(0,0,0.5)  euler=(0.5,0,0)   <span class="cmt">← 相对于 A</span>
+│       └── geom: capsule  size=0.05 0.1     <span class="cmt">← 相对于 B</span>
+├── body (pos=-1,0,0.5)  ← freejoint
+├── body (pos=-0.5,0,0.5) ← freejoint
+├── body (pos=0,0,0.5)   ← freejoint
+├── body (pos=0.5,0,0.5) ← freejoint
+├── body (pos=1,0,0.5)   ← freejoint
+├── body (pos=1.5,0,0.5) ← freejoint
+└── body (pos=2,0,0.5)   ← freejoint, mesh=tetrahedron
+  </div>
+
+  <div class="info-box tip">
+    <p><strong>💡 B 的世界坐标如何计算？</strong></p>
+    <p>B 的 pos 是 (0, 0, 0.5)，含义是"在 A 的局部坐标系中向上偏移 0.5"。若 A 在世界坐标 (0, 0, 2) 处且绕 X 轴旋转 0.5rad，那么 B 的世界位置 = A 的位姿矩阵 × B 的相对偏移。这和 ROS TF 树中的 <code>frame_id</code> 父子关系完全一致。</p>
+  </div>
+</section>
+
+<!-- ===== 7. 旋转表示 ===== -->
+<section>
+  <div class="section-title"><span class="num">7</span> 旋转表示方式</div>
+  <p style="margin-bottom:16px;">MuJoCo 支持多种旋转表示方法，可根据需要灵活选择：</p>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>属性</th><th>格式</th><th>说明</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>quat</code></td><td>w x y z（4 个值）</td><td><strong>注意：</strong>MuJoCo 使用 <strong>wxyz</strong> 顺序，Isaac Gym 使用 xyzw 顺序，两者不同！</td></tr>
+        <tr><td><code>axisangle</code></td><td>x y z angle（4 个值）</td><td>旋转轴 + 旋转角度（弧度）</td></tr>
+        <tr><td><code>xyaxes</code></td><td>6 个值</td><td>分别指定局部 X 轴和 Y 轴在世界中的方向</td></tr>
+        <tr><td><code>zaxis</code></td><td>3 个值</td><td>指定局部 Z 轴在世界中的方向</td></tr>
+        <tr><td><code>euler</code></td><td>x y z（3 个值）</td><td>欧拉角（弧度），旋转顺序为 <strong>XYZ</strong></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="info-box warn">
+    <p><strong>⚠️ MuJoCo vs Isaac Gym 的四元数顺序：</strong></p>
+    <p>MuJoCo 使用 <strong>wxyz</strong>（w 在前），Isaac Gym 使用 <strong>xyzw</strong>（w 在末尾）。如果在这两个平台之间传递姿态数据，务必进行转换。</p>
+  </div>
+</section>
+
+<!-- ===== 8. 完整场景 ===== -->
+<section>
+  <div class="section-title"><span class="num">8</span> 完整场景解析</div>
+  <p style="margin-bottom:16px;">以下是 scence.xml 的完整解析，它展示了本章所学知识在真实模型中的应用：</p>
+
+  <div class="card">
+    <h3>🏗 全局配置</h3>
+<pre><span class="tag">&lt;compiler</span> <span class="attr">angle</span>=<span class="val">"radian"</span> <span class="attr">meshdir</span>=<span class="val">"meshes"</span> <span class="attr">autolimits</span>=<span class="val">"true"</span> <span class="tag">/&gt;</span>
+<span class="tag">&lt;option</span> <span class="attr">timestep</span>=<span class="val">"0.002"</span> <span class="attr">gravity</span>=<span class="val">"0 0 -9.81"</span> <span class="attr">integrator</span>=<span class="val">"implicitfast"</span><span class="tag">/&gt;</span></pre>
+    <p style="font-size:.85rem; color:var(--text2);">角度单位为弧度；重力方向为 -Z（向下 9.81 m/s²）；积分器使用隐式快速方法。</p>
+  </div>
+
+  <div class="card">
+    <h3>🎨 视觉配置</h3>
+<pre><span class="tag">&lt;visual&gt;</span>
+    <span class="tag">&lt;global</span> <span class="attr">realtime</span>=<span class="val">"1"</span> <span class="tag">/&gt;</span>
+    <span class="tag">&lt;quality</span> <span class="attr">shadowsize</span>=<span class="val">"16384"</span> <span class="attr">numslices</span>=<span class="val">"28"</span> <span class="attr">offsamples</span>=<span class="val">"4"</span> <span class="tag">/&gt;</span>
+    <span class="tag">&lt;headlight</span> <span class="attr">diffuse</span>=<span class="val">"1 1 1"</span> <span class="attr">specular</span>=<span class="val">"0.5 0.5 0.5"</span> <span class="attr">active</span>=<span class="val">"1"</span> <span class="tag">/&gt;</span>
+<span class="tag">&lt;/visual&gt;</span></pre>
+  </div>
+
+  <div class="card">
+    <h3>📦 资源 &amp; 材质</h3>
+<pre><span class="cmt">&lt;!-- 自定义网格 --&gt;</span>
+<span class="tag">&lt;mesh</span> <span class="attr">name</span>=<span class="val">"tetrahedron"</span> <span class="attr">vertex</span>=<span class="val">"0 0 0  1 0 0  0 1 0  0 0 1"</span> <span class="tag">/&gt;</span>
+<span class="tag">&lt;mesh</span> <span class="attr">file</span>=<span class="val">"card.obj"</span> <span class="attr">scale</span>=<span class="val">"1 1 1"</span> <span class="tag">/&gt;</span>
+
+<span class="cmt">&lt;!-- 纹理和材质 --&gt;</span>
+<span class="tag">&lt;texture</span> <span class="attr">type</span>=<span class="val">"2d"</span> <span class="attr">file</span>=<span class="val">"./king_of_clubs.png"</span> <span class="tag">/&gt;</span>
+<span class="tag">&lt;material</span> <span class="attr">name</span>=<span class="val">"king_of_clubs"</span> <span class="attr">texture</span>=<span class="val">"king_of_clubs"</span> <span class="tag">/&gt;</span>
+
+<span class="cmt">&lt;!-- 天空盒 --&gt;</span>
+<span class="tag">&lt;texture</span> <span class="attr">type</span>=<span class="val">"skybox"</span> <span class="attr">file</span>=<span class="val">"../asset/desert.png"</span>
+         <span class="attr">gridsize</span>=<span class="val">"3 4"</span> <span class="attr">gridlayout</span>=<span class="val">".U..LFRB.D.."</span> <span class="tag">/&gt;</span>
+
+<span class="cmt">&lt;!-- 棋盘格地面材质 --&gt;</span>
+<span class="tag">&lt;texture</span> <span class="attr">name</span>=<span class="val">"plane"</span> <span class="attr">type</span>=<span class="val">"2d"</span> <span class="attr">builtin</span>=<span class="val">"checker"</span>
+         <span class="attr">rgb1</span>=<span class="val">".1 .1 .1"</span> <span class="attr">rgb2</span>=<span class="val">".9 .9 .9"</span>
+         <span class="attr">width</span>=<span class="val">"512"</span> <span class="attr">height</span>=<span class="val">"512"</span>
+         <span class="attr">mark</span>=<span class="val">"cross"</span> <span class="attr">markrgb</span>=<span class="val">".8 .8 .8"</span> <span class="tag">/&gt;</span>
+<span class="tag">&lt;material</span> <span class="attr">name</span>=<span class="val">"plane"</span> <span class="attr">reflectance</span>=<span class="val">"0.3"</span>
+          <span class="attr">texture</span>=<span class="val">"plane"</span> <span class="attr">texrepeat</span>=<span class="val">"1 1"</span> <span class="attr">texuniform</span>=<span class="val">"true"</span> <span class="tag">/&gt;</span></pre>
+  </div>
+
+  <div class="card">
+    <h3>🏛 默认属性（default class）</h3>
+    <p style="margin-bottom:8px;">通过 <code>&lt;default&gt;</code> 定义可复用的属性模版，避免重复编写：</p>
+<pre><span class="tag">&lt;default&gt;</span>
+    <span class="cmt">&lt;!-- 全局 geom 默认：软接触参数 &amp; 流体系数 --&gt;</span>
+    <span class="tag">&lt;geom</span> <span class="attr">solref</span>=<span class="val">".5e-4"</span> <span class="attr">solimp</span>=<span class="val">"0.9 0.99 1e-4"</span>
+          <span class="attr">fluidcoef</span>=<span class="val">"0.5 0.25 0.5 2.0 1.0"</span> <span class="tag">/&gt;</span>
+
+    <span class="cmt">&lt;!-- "card" class：扑克牌几何体 --&gt;</span>
+    <span class="tag">&lt;default</span> <span class="attr">class</span>=<span class="val">"card"</span><span class="tag">&gt;</span>
+        <span class="tag">&lt;geom</span> <span class="attr">type</span>=<span class="val">"mesh"</span> <span class="attr">mesh</span>=<span class="val">"card"</span> <span class="attr">mass</span>=<span class="val">"1.84e-4"</span>
+              <span class="attr">contype</span>=<span class="val">"0"</span> <span class="attr">conaffinity</span>=<span class="val">"0"</span> <span class="tag">/&gt;</span>
+    <span class="tag">&lt;/default&gt;</span>
+
+    <span class="cmt">&lt;!-- "collision" class：碰撞几何体（质量0，可视化用） --&gt;</span>
+    <span class="tag">&lt;default</span> <span class="attr">class</span>=<span class="val">"collision"</span><span class="tag">&gt;</span>
+        <span class="tag">&lt;geom</span> <span class="attr">type</span>=<span class="val">"box"</span> <span class="attr">mass</span>=<span class="val">"0"</span> <span class="attr">size</span>=<span class="val">"0.047 0.032 .00035"</span>
+              <span class="attr">group</span>=<span class="val">"3"</span> <span class="attr">friction</span>=<span class="val">".1"</span> <span class="tag">/&gt;</span>
+    <span class="tag">&lt;/default&gt;</span>
+<span class="tag">&lt;/default&gt;</span></pre>
+  </div>
+
+  <div class="card">
+    <h3>🌍 Worldbody 场景</h3>
+<pre><span class="tag">&lt;worldbody&gt;</span>
+    <span class="cmt">&lt;!-- 地面 & 灯光 --&gt;</span>
+    <span class="tag">&lt;geom</span> <span class="attr">name</span>=<span class="val">"floor"</span> <span class="attr">pos</span>=<span class="val">"0 0 0"</span> <span class="attr">size</span>=<span class="val">"10 10 .1"</span>
+          <span class="attr">type</span>=<span class="val">"plane"</span> <span class="attr">material</span>=<span class="val">"plane"</span> <span class="attr">condim</span>=<span class="val">"3"</span> <span class="tag">/&gt;</span>
+    <span class="tag">&lt;light</span> <span class="attr">directional</span>=<span class="val">"true"</span> <span class="attr">pos</span>=<span class="val">"30 30 30"</span>
+           <span class="attr">dir</span>=<span class="val">"0 -2 -1"</span> <span class="attr">diffuse</span>=<span class="val">".5 .5 .5"</span> <span class="tag">/&gt;</span>
+
+    <span class="cmt">&lt;!-- 扑克牌（带纹理的自由落体） --&gt;</span>
+    <span class="tag">&lt;body</span> <span class="attr">pos</span>=<span class="val">"0 0 1"</span> <span class="attr">euler</span>=<span class="val">"-45 45 0"</span><span class="tag">&gt;</span>
+        <span class="tag">&lt;freejoint /&gt;</span>
+        <span class="tag">&lt;geom</span> <span class="attr">class</span>=<span class="val">"card"</span> <span class="attr">material</span>=<span class="val">"king_of_clubs"</span> <span class="tag">/&gt;</span>
+        <span class="tag">&lt;geom</span> <span class="attr">class</span>=<span class="val">"collision"</span> <span class="tag">/&gt;</span>
+    <span class="tag">&lt;/body&gt;</span>
+
+    <span class="cmt">&lt;!-- 各种几何体演示（均有 freejoint，可自由落体） --&gt;</span>
+    <span class="tag">&lt;body</span> <span class="attr">pos</span>=<span class="val">"-1 0 .5"</span><span class="tag">&gt;</span>
+        <span class="tag">&lt;freejoint /&gt;</span>
+        <span class="tag">&lt;geom</span> <span class="attr">type</span>=<span class="val">"sphere"</span> <span class="attr">size</span>=<span class="val">"0.1"</span> <span class="attr">rgba</span>=<span class="val">".5 0 0 1"</span> <span class="tag">/&gt;</span>
+        <span class="tag">&lt;site</span> <span class="attr">type</span>=<span class="val">"capsule"</span> <span class="attr">size</span>=<span class="val">"0.05 0.1"</span> <span class="attr">rgba</span>=<span class="val">"0 0 .5 1"</span> <span class="tag">/&gt;</span>
+    <span class="tag">&lt;/body&gt;</span>
+
+    <span class="cmt">&lt;!-- ... 更多几何体 ... --&gt;</span>
+
+    <span class="cmt">&lt;!-- 嵌套 body 演示 --&gt;</span>
+    <span class="tag">&lt;body</span> <span class="attr">name</span>=<span class="val">"A"</span> <span class="attr">pos</span>=<span class="val">"0 0 2"</span> <span class="attr">euler</span>=<span class="val">"0.5 0 0"</span><span class="tag">&gt;</span>
+        <span class="tag">&lt;freejoint /&gt;</span>
+        <span class="tag">&lt;geom</span> <span class="attr">type</span>=<span class="val">"sphere"</span> <span class="attr">size</span>=<span class="val">"0.1"</span> <span class="attr">rgba</span>=<span class="val">".2 0 0 1"</span> <span class="tag">/&gt;</span>
+        <span class="tag">&lt;body</span> <span class="attr">name</span>=<span class="val">"B"</span> <span class="attr">pos</span>=<span class="val">"0 0 0.5"</span> <span class="attr">euler</span>=<span class="val">"0.5 0 0"</span><span class="tag">&gt;</span>
+            <span class="tag">&lt;geom</span> <span class="attr">type</span>=<span class="val">"capsule"</span> <span class="attr">size</span>=<span class="val">"0.05 0.1"</span> <span class="attr">rgba</span>=<span class="val">"0 0 .2 1"</span> <span class="tag">/&gt;</span>
+        <span class="tag">&lt;/body&gt;</span>
+    <span class="tag">&lt;/body&gt;</span>
+<span class="tag">&lt;/worldbody&gt;</span></pre>
+  </div>
+</section>
+
+<!-- ===== 9. 小结 ===== -->
+<section>
+  <div class="section-title"><span class="num">9</span> 本章小结</div>
+  <div class="card">
+    <table>
+      <thead>
+        <tr><th>概念</th><th>核心要点</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>geom</strong></td><td>有质量、参与碰撞的物理几何体；8 种类型，size 含义因类型而异</td></tr>
+        <tr><td><strong>site</strong></td><td>geom 的轻量版，无质量无碰撞；仅用于可视化标记和传感器安装</td></tr>
+        <tr><td><strong>body</strong></td><td>组织和嵌套物理实体的容器；父子关系形成坐标变换树</td></tr>
+        <tr><td><strong>condim</strong></td><td>控制碰撞摩擦维度，1=无摩擦 → 6=全摩擦，越大越精细</td></tr>
+        <tr><td><strong>contype/conaffinity</strong></td><td>32位掩码碰撞分组机制，双方按位与均非零才碰撞</td></tr>
+        <tr><td><strong>坐标树</strong></td><td>每个 body/geom/site 的位置都是相对于父级坐标系的，层层叠加</td></tr>
+        <tr><td><strong>旋转</strong></td><td>支持 quat(wxyz)、euler(xyz)、axisangle、xyaxes、zaxis 多种表示</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+</div>
+
+<footer>
+  MuJoCo Tutorial · Chapter 3: Worldbody · 仿真世界的构建基石
+</footer>
+
+</body>
+</html>

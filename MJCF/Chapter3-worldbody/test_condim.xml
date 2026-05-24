@@ -1,0 +1,56 @@
+<!-- condim碰撞维度对比: 1=无摩擦 3=平移摩擦 4=+旋转摩擦 6=全摩擦 -->
+<mujoco model="condim_test">
+    <compiler angle="radian"/>
+    <option timestep="0.002" gravity="0 0 -9.81"/>
+
+    <visual>
+        <global realtime="1"/>
+        <quality shadowsize="1024"/>
+        <headlight diffuse="1 1 1" specular="0.5 0.5 0.5" active="1"/>
+    </visual>
+
+    <asset>
+        <texture name="grid" type="2d" builtin="checker" width="512" height="512"
+                 rgb1=".2 .2 .2" rgb2=".8 .8 .8"/>
+        <material name="grid" texture="grid"/>
+    </asset>
+
+    <worldbody>
+        <geom name="floor" type="plane" size="20 20 .01" material="grid" condim="3"/>
+
+        <!-- condim=1: 无摩擦 —— 球会一直滑，不会滚 -->
+        <body pos="-3 0 1.5">
+            <freejoint/>
+            <geom type="sphere" size="0.25" rgba=".9 .2 .2 1" condim="1"/>
+        </body>
+
+        <!-- condim=3: 有平移摩擦 —— 球碰到地面会开始滚动 -->
+        <body pos="-1 0 1.5">
+            <freejoint/>
+            <geom type="sphere" size="0.25" rgba=".2 .8 .2 1" condim="3"/>
+        </body>
+
+        <!-- condim=4: +绕法线旋转摩擦 —— 绕接触点旋转有阻力 -->
+        <body pos="1 0 1.5">
+            <freejoint/>
+            <geom type="sphere" size="0.25" rgba=".2 .2 .9 1" condim="4"/>
+        </body>
+
+        <!-- condim=6: 全摩擦 —— 防止无限滚动 -->
+        <body pos="3 0 1.5">
+            <freejoint/>
+            <geom type="sphere" size="0.25" rgba=".8 .7 .2 1" condim="6"/>
+        </body>
+
+        <!-- 斜面用于测试滚动行为 -->
+        <body pos="-2 3 0" euler="0 -.3 0">
+            <geom type="box" size="2 .5 .1" rgba=".5 .5 .5 1" condim="3"/>
+        </body>
+        <body pos="0 3 0" euler="0 -.3 0">
+            <geom type="box" size="2 .5 .1" rgba=".5 .5 .5 1" condim="3"/>
+        </body>
+        <body pos="2 3 0" euler="0 -.3 0">
+            <geom type="box" size="2 .5 .1" rgba=".5 .5 .5 1" condim="3"/>
+        </body>
+    </worldbody>
+</mujoco>
